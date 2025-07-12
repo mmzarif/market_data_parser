@@ -1,0 +1,19 @@
+# Vivado build
+*.jou
+*.log
+*.str
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.webtalk/
+*.Xil/
+*.xdc
+
+# Simulation artifacts
+*.vcd
+*.wlf
+*.ucdb
+transcript
+vsim.wlf
