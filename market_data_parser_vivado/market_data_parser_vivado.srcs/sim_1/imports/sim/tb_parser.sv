@@ -38,7 +38,7 @@ module tb_parser;
 
   initial begin
     $display("Loading test vector from hex file...");
-    $readmemh("sim/test_vectors.hex", message);
+    $readmemh("F:/FPGA projects/market_data_parser/sim/test_vectors.hex", message);
     
     // Reset for 2 cycles
     #10 reset = 1;
@@ -67,6 +67,8 @@ module tb_parser;
     $display("  quantity  = %0d", quantity);
     $display("  padding   = 0x%04X", padding);
     $display("  done      = %b", done);
+    $display("  byte_in      = 0x%04X", byte_in);
+    $display("  byte_valid      = %0d", byte_valid);
 
     #10 $finish;
   end
