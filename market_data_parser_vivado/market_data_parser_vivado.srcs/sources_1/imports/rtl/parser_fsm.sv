@@ -131,7 +131,7 @@ end
       end
 
       default: begin
-        next_state = IDLE; // fallback to IDLE state
+        next_state = MSG_TYPE; // fallback to IDLE state
       end
     endcase
   end
