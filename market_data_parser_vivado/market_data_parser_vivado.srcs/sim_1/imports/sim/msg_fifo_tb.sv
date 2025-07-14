@@ -85,7 +85,54 @@ module msg_fifo_tb;
     read_en = 0;
 
     $display("Test complete.");
-    $finish;
+    //$finish; // End simulation
+
+      // === Phase 1: Fill FIFO to test 'full' ===
+  $display("---- Testing full condition ----");
+  for (int i = 0; i < FIFO_DEPTH; i++) begin
+    @(posedge clk);
+    gen_msg(i + 10);       // Messages 10, 11, 12, 13
+    write_en = 1;
+  end
+
+  @(posedge clk);
+  write_en = 0;
+
+  // Try writing one more message (should be ignored)
+  @(posedge clk);
+  gen_msg(99);
+  write_en = 1;
+  if (full) $display("At time %0t: FIFO is full. Message not written.", $time);
+  else $display("At time %0t: Unexpected - FIFO not full!", $time);
+
+  @(posedge clk);
+  write_en = 0;
+
+  // === Phase 2: Simultaneous read and write ===
+  $display("---- Testing simultaneous read/write ----");
+
+  for (int i = 0; i < FIFO_DEPTH; i++) begin
+    @(posedge clk);
+    gen_msg(i + 20);
+    write_en = 1;
+    if (msg_valid) begin
+      read_en = 1;
+      $display("Cycle %0t: Simultaneous READ (%h) and WRITE (%h)",
+               $time, msg_out.order_id, msg_in.order_id);
+    end else begin
+      read_en = 0;
+    end
+  end
+
+  @(posedge clk);
+  write_en = 0;
+  read_en = 0;
+
+    //$display("write_ptr = %0d, read_ptr = %0d, count = %0d", write_ptr, read_ptr, count);
+
+  $display("Final test complete.");
+  $finish;
+
   end
 
 endmodule
