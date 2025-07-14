@@ -9,7 +9,7 @@
   //is this mealy or moore?
     //this is a Moore machine because the outputs depend only on the current state
   typedef enum logic [2:0] {
-    //IDLE,
+    IDLE,
     MSG_TYPE,
     STOCK_ID,
     ORDER_ID,
@@ -28,5 +28,14 @@
     `define QUANTITY_LENGTH 4 // length of quantity in bytes
     `define PADDING_LENGTH 2 // length of padding in bytes
     //use define instead of localparam for constants to allow them to be used in other files
+
+    typedef struct packed { //packed means no padding between fields
+        logic [7:0] msg_type; // 1 byte
+        logic [7:0] stock_id; // 1 byte
+        logic [31:0] order_id; // 4 bytes
+        logic [31:0] price; // 4 bytes
+        logic [31:0] quantity; // 4 bytes
+        logic [15:0] padding; // 2 bytes. do I need this? 
+    } parsed_msg_t;
 
 `endif // PARSER_DEFS_SV

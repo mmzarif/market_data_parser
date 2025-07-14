@@ -53,11 +53,12 @@ module parser_fsm ( //do I need a start signal?
 );
 
   parser_state_t current_state, next_state;
+  parsed_msg_t parsed_msg; // struct to hold the parsed message
 
   logic [3:0] byte_count; // to count the number of bytes read
 
-  //logic [31:0] order_id_reg, price_reg, quantity_reg;
-  //logic [15:0] padding_reg;
+  logic [31:0] order_id_reg, price_reg, quantity_reg;
+  logic [15:0] padding_reg;
 
   // State transition logic
   always_ff @(posedge clk or posedge reset) begin
@@ -65,7 +66,7 @@ module parser_fsm ( //do I need a start signal?
     //current_state <= IDLE;
     current_state <= MSG_TYPE;
     byte_count <= 0;
-  end else if (byte_valid) begin
+  end else if (byte_valid || current_state == DONE) begin
     current_state <= next_state;
 
     // Use current_state, not next_state, to determine how many bytes we've processed
@@ -127,7 +128,7 @@ end
       end
 
       DONE: begin
-        //next_state = IDLE; // reset to IDLE after done
+        next_state = MSG_TYPE; // reset to IDLE after done
       end
 
       default: begin
@@ -137,56 +138,75 @@ end
   end
 
   assign done = (current_state == DONE);
+  
+  assign parsed_msg.order_id = (current_state == DONE) ? order_id_reg : 32'd0;
+  assign parsed_msg.price    = (current_state == DONE) ? price_reg    : 32'd0;
+  assign parsed_msg.quantity = (current_state == DONE) ? quantity_reg : 32'd0;
+  assign parsed_msg.padding  = (current_state == DONE) ? padding_reg  : 16'd0;
+  //we should try to use assign statements to drive outputs of the module
+  //cannot drive signals in both always_ff block and assignment statements
+  //can use assign for msg_type and stock_id by using temp registers for those as well, but maybe next time. it works for now
+  //** if I do not use assignment operators for these 4 when using temp registers, they reflect on the output 1 cycle later. 
+
+  
+//  always_comb begin
+//    if (done) begin
+//            order_id <= order_id_reg;
+//            price    <= price_reg;
+//            quantity <= quantity_reg;
+//            padding  <= padding_reg;
+//     end
+//  end          
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             msg_type <= 0;
             stock_id <= 0;
-            order_id <= 0;
-            price <= 0;
-            quantity <= 0;
-            padding <= 0;
+//            order_id <= 0;
+//            price <= 0;
+//            quantity <= 0;
+//            padding <= 0;
             byte_count <= 0;
             //done <= 0; assign is already driving done so no need to reset it here. causes conflict otherwise
-            //order_id_reg <= 0;
-            //price_reg    <= 0;
-            //quantity_reg <= 0;
-            //padding_reg  <= 0;
+            order_id_reg <= 0;
+            price_reg    <= 0;
+            quantity_reg <= 0;
+            padding_reg  <= 0;
         end 
         else if (byte_valid) begin
             case (current_state)
                 MSG_TYPE: begin
-                    msg_type <= byte_in;
+                    parsed_msg.msg_type <= byte_in;
                     //byte_count <= byte_count + 1;
                 end
 
                 STOCK_ID: begin
-                    stock_id <= byte_in;
+                    parsed_msg.stock_id <= byte_in;
                     //byte_count <= byte_count + 1;
                 end
 
                 ORDER_ID: begin
-                    //order_id_reg <= {order_id_reg[23:0], byte_in}; // shift in the new byte
+                    order_id_reg <= {order_id_reg[23:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
-                    order_id <= {order_id[23:0], byte_in};
+                    //order_id <= {order_id[23:0], byte_in};
                 end
 
                 PRICE: begin
-                    //price_reg <= {price_reg[23:0], byte_in}; // shift in the new byte
+                    price_reg <= {price_reg[23:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
-                    price <= {price[23:0], byte_in};
+                    //price <= {price[23:0], byte_in};
                 end
 
                 QUANTITY: begin
-                    //quantity_reg <= {quantity_reg[23:0], byte_in}; // shift in the new byte
+                    quantity_reg <= {quantity_reg[23:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
-                    quantity <= {quantity[23:0], byte_in};
+                    //quantity <= {quantity[23:0], byte_in};
                 end
 
                 PADDING: begin
-                    //padding_reg <= {padding_reg[7:0], byte_in}; // shift in the new byte
+                    padding_reg <= {padding_reg[7:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
-                    padding <= {padding[7:0], byte_in}; 
+                    //padding <= {padding[7:0], byte_in}; 
                 end
 
                 DONE: begin
@@ -201,10 +221,10 @@ end
                 //IDLE state also resets the registers so combine the two
                     msg_type <= 0;
                     stock_id <= 0;
-                    order_id <= 0;
-                    price <= 0;
-                    quantity <= 0;
-                    padding <= 0;
+//                    order_id <= 0;
+//                    price <= 0;
+//                    quantity <= 0;
+//                    padding <= 0;
                     //byte_count <= 0;
                 end
             endcase
