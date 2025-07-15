@@ -43,17 +43,19 @@ module parser_fsm ( //do I need a start signal?
   input logic byte_valid,
   input logic [7:0] byte_in, // incoming byte data
   
-  output logic [7:0] msg_type,
-  output logic [7:0] stock_id,
-  output logic [31:0] order_id,
-  output logic [31:0] price,
-  output logic [31:0] quantity,
-  output logic [15:0] padding,
+  // output logic [7:0] msg_type,
+  // output logic [7:0] stock_id,
+  // output logic [31:0] order_id,
+  // output logic [31:0] price,
+  // output logic [31:0] quantity,
+  // output logic [15:0] padding,
+  parsed_msg_t parsed_msg, // struct to hold the parsed message
   output logic done
 );
 
-  parser_state_t current_state, next_state;
-  parsed_msg_t parsed_msg; // struct to hold the parsed message
+  parser_state_t current_state, next_state; //enumerations
+  //parsed_msg_t parsed_msg; // struct to hold the parsed message
+  //msg_type_t msg_type; //enumeration
 
   logic [3:0] byte_count; // to count the number of bytes read
 
@@ -68,12 +70,11 @@ module parser_fsm ( //do I need a start signal?
     byte_count <= 0;
   end else if (byte_valid || current_state == DONE) begin
     current_state <= next_state;
-
     // Use current_state, not next_state, to determine how many bytes we've processed
     //if (current_state != IDLE && current_state != DONE) begin
     if (current_state != DONE) begin
       byte_count <= byte_count + 1;
-    end else if (current_state == DONE) begin
+    end else if (next_state == DONE) begin //in the next clock cycle, byte count will go to zero as state goes to done
       byte_count <= 0;
     end
   end
@@ -105,7 +106,11 @@ end
 
       ORDER_ID: begin
         if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH - 1) begin
-          next_state = PRICE;
+          if (parsed_msg.msg_type == MSG_DELETE) begin
+            next_state = DONE; // go to DONE state if msg_type is delete
+          end else begin
+            next_state = PRICE; // otherwise, go to PRICE state
+          end
         end
       end
 
@@ -128,44 +133,23 @@ end
       end
 
       DONE: begin
-        next_state = MSG_TYPE; // reset to IDLE after done
+        next_state = MSG_TYPE; // reset to MSG_TYPE after done
       end
 
       default: begin
         next_state = MSG_TYPE; // fallback to IDLE state
       end
     endcase
-  end
-
-  assign done = (current_state == DONE);
-  
-  assign parsed_msg.order_id = (current_state == DONE) ? order_id_reg : 32'd0;
-  assign parsed_msg.price    = (current_state == DONE) ? price_reg    : 32'd0;
-  assign parsed_msg.quantity = (current_state == DONE) ? quantity_reg : 32'd0;
-  assign parsed_msg.padding  = (current_state == DONE) ? padding_reg  : 16'd0;
-  //we should try to use assign statements to drive outputs of the module
-  //cannot drive signals in both always_ff block and assignment statements
-  //can use assign for msg_type and stock_id by using temp registers for those as well, but maybe next time. it works for now
-  //** if I do not use assignment operators for these 4 when using temp registers, they reflect on the output 1 cycle later. 
-
-  
-//  always_comb begin
-//    if (done) begin
-//            order_id <= order_id_reg;
-//            price    <= price_reg;
-//            quantity <= quantity_reg;
-//            padding  <= padding_reg;
-//     end
-//  end          
+  end      
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            msg_type <= 0;
-            stock_id <= 0;
-//            order_id <= 0;
-//            price <= 0;
-//            quantity <= 0;
-//            padding <= 0;
+            parsed_msg.msg_type <= 0;
+            parsed_msg.stock_id <= 0;
+//            parsed_msg.order_id <= 0;
+//            parsed_msg.price <= 0;
+//            parsed_msg.quantity <= 0;
+//            parsed_msg.padding <= 0;
             byte_count <= 0;
             //done <= 0; assign is already driving done so no need to reset it here. causes conflict otherwise
             order_id_reg <= 0;
@@ -189,6 +173,7 @@ end
                     order_id_reg <= {order_id_reg[23:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
                     //order_id <= {order_id[23:0], byte_in};
+
                 end
 
                 PRICE: begin
@@ -210,17 +195,17 @@ end
                 end
 
                 DONE: begin
-//                    order_id <= order_id_reg;
-//                    price    <= price_reg;
-//                    quantity <= quantity_reg;
-//                    padding  <= padding_reg;
+//                   order_id_reg <= 0;
+//                   price_reg    <= 0;
+//                   quantity_reg <= 0;
+//                   padding_reg  <= 0;
                 end
 
                 default: begin
                 // Reset all registers on unexpected state
                 //IDLE state also resets the registers so combine the two
-                    msg_type <= 0;
-                    stock_id <= 0;
+                    parsed_msg.msg_type <= MSG_NULL;
+                    parsed_msg.stock_id <= 0;
 //                    order_id <= 0;
 //                    price <= 0;
 //                    quantity <= 0;
@@ -230,5 +215,16 @@ end
             endcase
         end
     end
+
+    assign done = (current_state == DONE);
+
+  assign parsed_msg.order_id = (current_state == DONE) ? order_id_reg : 32'd0;
+  assign parsed_msg.price    = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? price_reg    : 32'd0;
+  assign parsed_msg.quantity = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? quantity_reg : 32'd0;
+  assign parsed_msg.padding  = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? padding_reg  : 16'd0;
+  //we should try to use assign statements to drive outputs of the module
+  //cannot drive signals in both always_ff block and assignment statements
+  //can use assign for msg_type and stock_id by using temp registers for those as well, but maybe next time. it works for now
+  //** if I do not use assignment operators for these 4 when using temp registers, they reflect on the output 1 cycle later.
 
 endmodule
