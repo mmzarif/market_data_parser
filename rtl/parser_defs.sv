@@ -31,10 +31,10 @@
 
   //typedef enum logic[1:0] {
   typedef enum logic[7:0] {
-    MSG_ADD = 0x41, // 'A'
-    MSG_DELETE = 0x44, // 'D'
-    MSG_UPDATE = 0x55, // 'U'
-    MSG_NULL = 0x4E // 'N'
+    MSG_ADD = 8'h41, // 'A'
+    MSG_DELETE = 8'h44, // 'D'
+    MSG_UPDATE = 8'h55, // 'U'
+    MSG_NULL = 8'h4E // 'N'
   } msg_type_t;
  
     typedef struct packed { //packed means no padding between fields

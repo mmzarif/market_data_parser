@@ -49,7 +49,7 @@ module parser_fsm ( //do I need a start signal?
   // output logic [31:0] price,
   // output logic [31:0] quantity,
   // output logic [15:0] padding,
-  parsed_msg_t parsed_msg, // struct to hold the parsed message
+  output parsed_msg_t parsed_msg, // struct to hold the parsed message
   output logic done
 );
 
@@ -144,7 +144,7 @@ end
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            parsed_msg.msg_type <= 0;
+            parsed_msg.msg_type <= MSG_NULL;
             parsed_msg.stock_id <= 0;
 //            parsed_msg.order_id <= 0;
 //            parsed_msg.price <= 0;
@@ -226,6 +226,5 @@ end
   //cannot drive signals in both always_ff block and assignment statements
   //can use assign for msg_type and stock_id by using temp registers for those as well, but maybe next time. it works for now
   //** if I do not use assignment operators for these 4 when using temp registers, they reflect on the output 1 cycle later.
-
 
 endmodule

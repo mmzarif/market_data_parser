@@ -1,7 +1,6 @@
 //first in first out buffer so that multiple messages can be parsed and stored while whatever needs the data takes it out at its own pace
 //lets say our fifo has a depth of 16, so we can store 16 messages at a time
 //I want to use circular buffer logic to implement the FIFO
-//but let's keep it simple for now
 //I need a write pointer to know where to write the next message. this increments every time a message is written
 //write when a write_en signal is asserted and the FIFO is not full
 //I need a read pointer to know where to read the next message. this increments every time a message is read
@@ -23,8 +22,7 @@ module msg_fifo #(
     input parsed_msg_t msg_in, // message to write into FIFO
     output logic full, // indicates if FIFO is full
     output logic empty, // indicates if FIFO is empty
-    output parsed_msg_t msg_out, // message read from FIFO
-    output logic msg_valid //we had byte_valid in parser_fsm, so we can use msg_valid here to tell downstream logic that the message is valid
+    output parsed_msg_t msg_out // message read from FIFO
 );
 
   //logic [FIFO_DEPTH-1:0] fifo_mem; // this is bad
@@ -60,5 +58,4 @@ module msg_fifo #(
   assign full = (count == FIFO_DEPTH); 
   assign empty = (count == 0); 
   assign msg_out = fifo_mem[read_ptr]; // assign message output from FIFO
-  assign msg_valid = !empty; // message is valid if FIFO is not empty
 endmodule

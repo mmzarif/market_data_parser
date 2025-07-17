@@ -49,7 +49,7 @@ module parser_fsm ( //do I need a start signal?
   // output logic [31:0] price,
   // output logic [31:0] quantity,
   // output logic [15:0] padding,
-  parsed_msg_t parsed_msg, // struct to hold the parsed message
+  output parsed_msg_t parsed_msg, // struct to hold the parsed message
   output logic done
 );
 
@@ -67,19 +67,29 @@ module parser_fsm ( //do I need a start signal?
   if (reset) begin
     //current_state <= IDLE;
     current_state <= MSG_TYPE;
-    byte_count <= 0;
-  end else if (byte_valid || current_state == DONE) begin
+    //byte_count <= 0;
+  end else if (byte_valid) begin
     current_state <= next_state;
     // Use current_state, not next_state, to determine how many bytes we've processed
     //if (current_state != IDLE && current_state != DONE) begin
-    if (current_state != DONE) begin
-      byte_count <= byte_count + 1;
-    end else if (next_state == DONE) begin //in the next clock cycle, byte count will go to zero as state goes to done
-      byte_count <= 0;
-    end
+    // if (current_state != DONE) begin
+    //   byte_count <= byte_count + 1;
+    // end else if (next_state == DONE) begin //in the next clock cycle, byte count will go to zero as state goes to done
+    //   byte_count <= 0;
+    // end
   end
 end
 
+  //byte_count logic 
+  always_ff @(posedge clk or posedge reset) begin
+    if (reset) begin
+      byte_count <= 0;
+    end else if (byte_valid && current_state != DONE) begin
+      byte_count <= byte_count + 1;
+    end else if (next_state == DONE) begin
+      byte_count <= 0; // reset byte count when done
+    end
+  end
 
   // Next state and output logic
   always_comb begin
@@ -144,7 +154,7 @@ end
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            parsed_msg.msg_type <= 0;
+            parsed_msg.msg_type <= MSG_NULL;
             parsed_msg.stock_id <= 0;
 //            parsed_msg.order_id <= 0;
 //            parsed_msg.price <= 0;
