@@ -2,6 +2,7 @@
 //create one array to store bids in descending order
 //create one array to store asks in ascending order
 //this means I need to modify message structure to include order type (bid or ask)
+//ASSUME ALL ORDERS ARE FOR THE SAME STOCK
 
 `include "parser_defs.sv"
 
@@ -13,11 +14,13 @@ module order_book #(
     input logic reset,
     input logic read_en, // signal to read a message from FIFO
     input parsed_msg_t parsed_message, // message read from FIFO
-    input logic empty
+    input logic empty,
 
     //do I need an output?
     output logic [31:0] best_bid_price,
-    output logic [31:0] best_ask_price
+    output logic [31:0] best_ask_price,
+    output logic [31:0] best_bid_quantity,
+    output logic [31:0] best_ask_quantity
 );
 
 // logic [31:0] bid_order_id   [0:MAX_ORDERS-1];
@@ -37,10 +40,16 @@ ask_order_t ask_orders   [0:MAX_ORDERS-1];
 always_ff @(posedge clk or posedge reset) begin
     if (reset) begin
         //reset all orders
-        for (int i = 0; i < MAX_ORDERS; i++) begin
+        for (int i = 0; i < MAX_ORDERS; i++) begin //no generate needed since this is runtime loop, notgenerate-time loops
             bid_orders[i].valid <= 0;
             ask_orders[i].valid <= 0;
         end
+
+        best_bid_price <= 0;
+        best_ask_price <= 0;
+        best_bid_quantity <= 0;
+        best_ask_quantity <= 0;
+
     end else if (read_en && !empty) begin
         //process parsed_message based on msg_type
         case (parsed_message.msg_type)
@@ -95,7 +104,7 @@ always_ff @(posedge clk or posedge reset) begin
                 //update order in the respective array based on order_side
                 if (parsed_message.order_side == ORDER_SIDE_BID) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
-                        if (bid_orders[i].valid && bid_orders[i].order_id == parsed_message.order_id) begin
+                        if (bid_orders[i].valid && bid_orders[i].stock_id == parsed_message.stock_id && bid_orders[i].order_id == parsed_message.order_id) begin
                             bid_orders[i].price <= parsed_message.price;
                             bid_orders[i].quantity <= parsed_message.quantity;
                             break; // exit loop after updating order
@@ -103,7 +112,7 @@ always_ff @(posedge clk or posedge reset) begin
                     end
                 end else if (parsed_message.order_side == ORDER_SIDE_ASK) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
-                        if (ask_orders[i].valid && ask_orders[i].order_id == parsed_message.order_id) begin
+                        if (ask_orders[i].valid && ask_orders[i].stock_id == parsed_message.stock_id && ask_orders[i].order_id == parsed_message.order_id) begin
                             ask_orders[i].price <= parsed_message.price;
                             ask_orders[i].quantity <= parsed_message.quantity;
                             break; // exit loop after updating order
@@ -118,6 +127,14 @@ always_ff @(posedge clk or posedge reset) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
                         if (bid_orders[i].valid && bid_orders[i].order_id == parsed_message.order_id) begin
                             bid_orders[i].valid <= 0; // mark as invalid
+                            for (int j = i; j < MAX_ORDERS-1; j++) begin
+                                if (bid_orders[j+1].valid) // only shift if next order is valid
+                                    bid_orders[j] <= bid_orders[j+1]; // shift down
+                                else begin
+                                    bid_orders[j].valid <= 0; // mark as invalid if next order is not valid
+                                    break;
+                                end
+                            end
                             break; // exit loop after deleting order
                         end
                     end
@@ -125,6 +142,14 @@ always_ff @(posedge clk or posedge reset) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
                         if (ask_orders[i].valid && ask_orders[i].order_id == parsed_message.order_id) begin
                             ask_orders[i].valid <= 0; // mark as invalid
+                            for (int j = i; j < MAX_ORDERS-1; j++) begin
+                                if (ask_orders[j+1].valid) // only shift if next order is valid
+                                    ask_orders[j] <= ask_orders[j+1]; // shift down
+                                else begin
+                                    ask_orders[j].valid <= 0; // mark as invalid if next order is not valid
+                                    break;
+                                end
+                            end
                             break; // exit loop after deleting order
                         end
                     end
@@ -132,6 +157,22 @@ always_ff @(posedge clk or posedge reset) begin
             end
 
         endcase
+    end
+
+    if (bid_orders[0].valid) begin
+        best_bid_price <= bid_orders[0].price;
+        best_bid_quantity <= bid_orders[0].quantity;
+    end else begin
+        best_bid_price <= 0;
+        best_bid_quantity <= 0;
+    end
+
+    if (ask_orders[0].valid) begin
+        best_ask_price <= ask_orders[0].price;
+        best_ask_quantity <= ask_orders[0].quantity;
+    end else begin
+        best_ask_price <= 0;
+        best_ask_quantity <= 0;
     end
 end
 

@@ -10,6 +10,8 @@ module order_book_tb;
   logic read_en = 0;
   logic empty = 0;
   parsed_msg_t msg;
+  logic [31:0] best_ask_price, best_bid_price;
+  logic [31:0] best_ask_quantity, best_bid_quantity;
 
   // Instantiate the order book
   order_book #(.MAX_ORDERS(MAX_ORDERS)) dut (
@@ -17,11 +19,14 @@ module order_book_tb;
     .reset(reset),
     .read_en(read_en),
     .parsed_message(msg),
-    .empty(empty)
+    .empty(empty),
+    .best_bid_price(best_bid_price),
+    .best_ask_price(best_ask_price),
+    .best_bid_quantity(best_bid_quantity),
+    .best_ask_quantity(best_ask_quantity)
   );
 
   // Clock-free simulation stepper
-// Clock-free simulation stepper
   task apply_msg(input parsed_msg_t new_msg);
     msg = new_msg;
     empty = 0;
@@ -47,6 +52,9 @@ module order_book_tb;
                   dut.ask_orders[i].price, dut.ask_orders[i].quantity);
       end
     end
+
+    $display("Best Bid: $%0d (%0d shares)", best_bid_price, best_bid_quantity);
+    $display("Best Ask: $%0d (%0d shares)", best_ask_price, best_ask_quantity);
     $display("----------------------\n");
   endtask
 
@@ -72,6 +80,22 @@ module order_book_tb;
     print_order_book();
 
     apply_msg('{MSG_ADD, 8'h01, 32'hCCCC_CCCC, ORDER_SIDE_ASK, 32'd1150, 32'd5, 8'hFF});  // $11.50
+    print_order_book();
+
+    // Update BID order (change quantity only)
+    apply_msg('{MSG_UPDATE, 8'h01, 32'h1111_1111, ORDER_SIDE_BID, 32'd1000, 32'd999, 8'hFF});
+    print_order_book();
+
+    // Update ASK order (change price and quantity)
+    apply_msg('{MSG_UPDATE, 8'h01, 32'hBBBB_BBBB, ORDER_SIDE_ASK, 32'd1075, 32'd11, 8'hFF});
+    print_order_book();
+
+    // Delete BID order
+    apply_msg('{MSG_DELETE, 8'h01, 32'h1111_1111, ORDER_SIDE_BID, 32'd0, 32'd0, 8'hFF});
+    print_order_book();
+
+    // Delete ASK order
+    apply_msg('{MSG_DELETE, 8'h01, 32'hBBBB_BBBB, ORDER_SIDE_ASK, 32'd0, 32'd0, 8'hFF});
     print_order_book();
 
     $display("Testbench complete.");
