@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 `include "parser_defs.sv"
+`define PARSER_ASSERTIONS
 
 module parser_top_tb;
 
@@ -98,10 +99,11 @@ module parser_top_tb;
     wait (!empty);
     $display("\n[TB] FIFO is NOT empty. Reading message...\n");
 
-    read_message();
-    @(posedge clk); // wait for msg_out to stabilize
-
-    // Print results
+    read_en <= 1;
+    @(posedge clk);
+    read_en <= 0;
+    
+    // Print immediately after data is read from FIFO
     $display("Parsed Message:");
     $display("  msg_type  = 0x%0h", msg_out.msg_type);
     $display("  stock_id  = 0x%0h", msg_out.stock_id);
@@ -109,8 +111,14 @@ module parser_top_tb;
     $display("  price     = 0x%0h", msg_out.price);
     $display("  quantity  = 0x%0h", msg_out.quantity);
     $display("  padding   = 0x%0h", msg_out.padding);
+    
+    @(posedge clk); // allow msg_out to go back to X if desired
 
-    #20;
+    #100;
+  `ifdef PERF
+    dut.print_perf_stats();
+  `endif
+    $display("[TB] Simulation completed. Dumping performance stats...\n");
     $finish;
   end
 

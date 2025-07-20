@@ -60,7 +60,6 @@ module parser_fsm ( //do I need a start signal?
   logic [3:0] byte_count; // to count the number of bytes read
 
   logic [31:0] order_id_reg, price_reg, quantity_reg;
-  logic [15:0] padding_reg;
 
   // State transition logic
   always_ff @(posedge clk or posedge reset) begin
@@ -119,19 +118,25 @@ end
           if (parsed_msg.msg_type == MSG_DELETE) begin
             next_state = DONE; // go to DONE state if msg_type is delete
           end else begin
-            next_state = PRICE; // otherwise, go to PRICE state
+            next_state = ORDER_SIDE; // otherwise, go to ORDER_SIDE state
           end
         end
       end
 
+      ORDER_SIDE: begin
+        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_SIDE_LENGTH - 1) begin
+          next_state = PRICE;
+        end
+      end
+
       PRICE: begin
-        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `PRICE_LENGTH - 1) begin
+        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_TYPE_LENGTH + `PRICE_LENGTH - 1) begin
           next_state = QUANTITY;
         end
       end
 
       QUANTITY: begin
-        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `PRICE_LENGTH + `QUANTITY_LENGTH - 1) begin
+        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_TYPE_LENGTH + `PRICE_LENGTH + `QUANTITY_LENGTH - 1) begin
           next_state = PADDING;
         end
       end
@@ -156,10 +161,11 @@ end
         if (reset) begin
             parsed_msg.msg_type <= MSG_NULL;
             parsed_msg.stock_id <= 0;
-//            parsed_msg.order_id <= 0;
-//            parsed_msg.price <= 0;
-//            parsed_msg.quantity <= 0;
-//            parsed_msg.padding <= 0;
+//          parsed_msg.order_id <= 0;
+            parsed_msg.order_side <= ORDER_SIDE_UNKNOWN;
+//          parsed_msg.price <= 0;
+//          parsed_msg.quantity <= 0;
+           parsed_msg.padding <= 0;
             byte_count <= 0;
             //done <= 0; assign is already driving done so no need to reset it here. causes conflict otherwise
             order_id_reg <= 0;
@@ -183,7 +189,12 @@ end
                     order_id_reg <= {order_id_reg[23:0], byte_in}; // shift in the new byte
                     //byte_count <= byte_count + 1;
                     //order_id <= {order_id[23:0], byte_in};
+                end
 
+                ORDER_SIDE: begin
+                    parsed_msg.order_side <= (byte_in == ORDER_SIDE_BID) ? ORDER_SIDE_BID : 
+                                            (byte_in == ORDER_SIDE_ASK) ? ORDER_SIDE_ASK : ORDER_SIDE_UNKNOWN;
+                    //byte_count <= byte_count + 1;
                 end
 
                 PRICE: begin
@@ -199,7 +210,7 @@ end
                 end
 
                 PADDING: begin
-                    padding_reg <= {padding_reg[7:0], byte_in}; // shift in the new byte
+                    padding_reg <= byte_in; // shift in the new byte
                     //byte_count <= byte_count + 1;
                     //padding <= {padding[7:0], byte_in}; 
                 end
@@ -216,6 +227,7 @@ end
                 //IDLE state also resets the registers so combine the two
                     parsed_msg.msg_type <= MSG_NULL;
                     parsed_msg.stock_id <= 0;
+                    parsed_msg.order_side <= ORDER_SIDE_UNKNOWN;
 //                    order_id <= 0;
 //                    price <= 0;
 //                    quantity <= 0;
