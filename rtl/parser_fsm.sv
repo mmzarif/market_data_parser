@@ -130,13 +130,13 @@ end
       end
 
       PRICE: begin
-        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_TYPE_LENGTH + `PRICE_LENGTH - 1) begin
+        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_SIDE_LENGTH + `PRICE_LENGTH - 1) begin
           next_state = QUANTITY;
         end
       end
 
       QUANTITY: begin
-        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_TYPE_LENGTH + `PRICE_LENGTH + `QUANTITY_LENGTH - 1) begin
+        if (byte_count == `MSG_TYPE_LENGTH + `STOCK_ID_LENGTH + `ORDER_ID_LENGTH + `ORDER_SIDE_LENGTH + `PRICE_LENGTH + `QUANTITY_LENGTH - 1) begin
           next_state = PADDING;
         end
       end
@@ -171,7 +171,7 @@ end
             order_id_reg <= 0;
             price_reg    <= 0;
             quantity_reg <= 0;
-            padding_reg  <= 0;
+            //padding_reg  <= 0;
         end 
         else if (byte_valid) begin
             case (current_state)
@@ -210,7 +210,7 @@ end
                 end
 
                 PADDING: begin
-                    padding_reg <= byte_in; // shift in the new byte
+                    parsed_msg.padding <= byte_in; // shift in the new byte
                     //byte_count <= byte_count + 1;
                     //padding <= {padding[7:0], byte_in}; 
                 end
@@ -238,12 +238,12 @@ end
         end
     end
 
-    assign done = (current_state == DONE);
+  assign done = (current_state == DONE);
 
   assign parsed_msg.order_id = (current_state == DONE) ? order_id_reg : 32'd0;
   assign parsed_msg.price    = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? price_reg    : 32'd0;
   assign parsed_msg.quantity = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? quantity_reg : 32'd0;
-  assign parsed_msg.padding  = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? padding_reg  : 16'd0;
+  //assign parsed_msg.padding  = (current_state == DONE && parsed_msg.msg_type != MSG_DELETE) ? padding_reg  : 16'd0;
   //we should try to use assign statements to drive outputs of the module
   //cannot drive signals in both always_ff block and assignment statements
   //can use assign for msg_type and stock_id by using temp registers for those as well, but maybe next time. it works for now

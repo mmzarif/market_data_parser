@@ -104,7 +104,7 @@ always_ff @(posedge clk or posedge reset) begin
                 //update order in the respective array based on order_side
                 if (parsed_message.order_side == ORDER_SIDE_BID) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
-                        if (bid_orders[i].valid && bid_orders[i].stock_id == parsed_message.stock_id && bid_orders[i].order_id == parsed_message.order_id) begin
+                        if (bid_orders[i].valid && bid_orders[i].order_id == parsed_message.order_id) begin
                             bid_orders[i].price <= parsed_message.price;
                             bid_orders[i].quantity <= parsed_message.quantity;
                             break; // exit loop after updating order
@@ -112,7 +112,7 @@ always_ff @(posedge clk or posedge reset) begin
                     end
                 end else if (parsed_message.order_side == ORDER_SIDE_ASK) begin
                     for (int i = 0; i < MAX_ORDERS; i++) begin
-                        if (ask_orders[i].valid && ask_orders[i].stock_id == parsed_message.stock_id && ask_orders[i].order_id == parsed_message.order_id) begin
+                        if (ask_orders[i].valid && ask_orders[i].order_id == parsed_message.order_id) begin
                             ask_orders[i].price <= parsed_message.price;
                             ask_orders[i].quantity <= parsed_message.quantity;
                             break; // exit loop after updating order
